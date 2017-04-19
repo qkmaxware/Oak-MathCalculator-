@@ -1,0 +1,16 @@
+def square(x:y){
+	y =x*x;
+};
+
+def rootN(x,n:z){
+	z = x^(1/n);
+};
+
+def tan(x:y){
+	y = sin(x) / cos(x);
+};
+
+def logN(x,n:z){
+	z = log(x) / log(n);
+};
+
