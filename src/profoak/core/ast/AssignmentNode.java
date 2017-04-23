@@ -5,7 +5,10 @@
  */
 package profoak.core.ast;
 
+import profoak.core.CoreException;
 import profoak.core.Scope;
+import profoak.core.value.Matrix;
+import profoak.core.value.Single;
 import profoak.core.value.Value;
 
 /**
@@ -35,9 +38,29 @@ public class AssignmentNode implements AST{
     public Object Execute(Scope scope) {
         Scope next = scope;
         Object value = children[1].Execute(next);
-        if(value instanceof Value && children[0] instanceof NameNode){
-            scope.Set(((NameNode)children[0]).name, (Value)value);
+        if((value instanceof Value)){
+            AST name = children[0];
+            if(name instanceof NameNode){
+                scope.Set(((NameNode)name).name, (Value)value);
+            }
+            if (name instanceof IndexerNode && value instanceof Single){
+                IndexerNode ind = (IndexerNode)name;
+                int[] index = ind.GetIndex(scope);
+                String nameValue = ind.GetIndexedName(scope);
+                if(nameValue != null && index != null){
+                    Object mat = scope.Get(nameValue);
+                    if(mat instanceof Matrix){
+                        ((Matrix)mat).Set(index[0], index[1], (Single)value);
+                        return mat;
+                    }else{
+                        throw new CoreException("Cannot index anything other than a matrix.");
+                    }
+                }else{
+                    throw new CoreException("Invalid indexing parameters.");
+                }
+            }
         }
+        
         return value;
     }
  

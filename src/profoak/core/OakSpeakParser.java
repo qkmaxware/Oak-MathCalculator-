@@ -24,8 +24,10 @@ public class OakSpeakParser {
             new ParseToken("mul","^\\*"),
             new ParseToken("div","^\\/"),
             new ParseToken("pow","^\\^"),
-            new ParseToken("def","^def"),
+            new ParseToken("def","^DEF"),
             new ParseToken("booleanliteral","^(?:TRUE|FALSE)"),
+            new ParseToken("if","^IF"),
+            new ParseToken("while","^WHILE"),
             new ParseToken("number","^[0-9]+(?:\\.[0-9]+)?(?:[ij])?"),
             new ParseToken("identifier","^[a-zA-Z][a-zA-Z0-9]*"),
             new ParseToken("open","^\\("),
@@ -55,26 +57,29 @@ public class OakSpeakParser {
     private final int DIV = 3;
     private final int POW = 4;
     private final int DEF = 5;
-    private final int NUM = 7;
-    private final int ID = 8;
-    private final int OPEN_BRACKET = 9;
-    private final int CLOSE_BRACKET = 10;
-    private final int START_MATRIX = 11;
-    private final int END_MATRIX = 12;
-    private final int COMMA = 13;
-    private final int ROW_BREAK = 14;
-    private final int EQUALS_SIGN = 15;
-    private final int OPEN_INDEX = 16;
-    private final int CLOSE_INDEX = 17;
-    private final int MAPPING = 18;
-    private final int MATRIX_MULTIPLICATION = 19;
-    private final int END_STATEMENT = 14; //TMP
-    private final int BOOL_LESS = 20;
-    private final int BOOL_GREATER = 21;
-    private final int BOOL_AND = 22;
-    private final int BOOL_OR = 23;
-    private final int BOOL_NOT = 24;
     private final int BOOL_LITERAL = 6;
+    private final int IF = 7;
+    private final int WHILE = 8;
+    private final int NUM = 9;
+    private final int ID = 10;
+    private final int OPEN_BRACKET = 11;
+    private final int CLOSE_BRACKET = 12;
+    private final int START_MATRIX = 13;
+    private final int END_MATRIX = 14;
+    private final int COMMA = 15;
+    private final int ROW_BREAK = 16;
+    private final int EQUALS_SIGN = 17;
+    private final int OPEN_INDEX = 18;
+    private final int CLOSE_INDEX = 19;
+    private final int MAPPING = 20;
+    private final int MATRIX_MULTIPLICATION = 21;
+    private final int END_STATEMENT = 16; //TMP
+    private final int BOOL_LESS = 22;
+    private final int BOOL_GREATER = 23;
+    private final int BOOL_AND = 24;
+    private final int BOOL_OR = 25;
+    private final int BOOL_NOT = 26;
+    
 
     public OakSpeakParser(){
         tokenizer = new Tokenizer(
@@ -89,10 +94,12 @@ public class OakSpeakParser {
                 StripComments(tokenizer.Tokenize(script))
         );
         
-        //System.out.println(tokens);
-        
         //Create parse tree
         AST root = ParseProgram(tokens);
+        
+        if(!tokens.isEmpty()){
+            profoak.ProfOak.Log("Evaluation of input string not fully completed. Failed at: "+tokens.peek().match);
+        }
         
         return (ProgramNode)root;
     }
@@ -144,7 +151,17 @@ public class OakSpeakParser {
     private AST ParseStatement(RQueue<ParseToken.TokenMatch> tokens){
         int restore = tokens.RestorePoint();
         
-        AST statement = ParseBooleanExpression(tokens);
+        AST statement = ParseIf(tokens);
+        if(statement != null)
+            return statement;
+        tokens.RestoreTo(restore);
+        
+        statement = ParseWhile(tokens);
+        if(statement != null)
+            return statement;
+        tokens.RestoreTo(restore);
+        
+        statement = ParseBooleanExpression(tokens);
         if(statement != null)
             return statement;
         tokens.RestoreTo(restore);
@@ -293,11 +310,11 @@ public class OakSpeakParser {
         ComparisonNode node = new ComparisonNode();
         
         //Parse operator
-        if(tokens.peek().equals(syntax[BOOL_LESS])){
+        if(!tokens.isEmpty() && tokens.peek().equals(syntax[BOOL_LESS])){
             node.mode = ComparisonNode.Mode.LessThan;
-        }else if(tokens.peek().equals(syntax[BOOL_GREATER])){
+        }else if(!tokens.isEmpty() && tokens.peek().equals(syntax[BOOL_GREATER])){
             node.mode = ComparisonNode.Mode.GreaterThan;
-        }else if(tokens.peek().equals(syntax[EQUALS_SIGN])){
+        }else if(!tokens.isEmpty() && tokens.peek().equals(syntax[EQUALS_SIGN])){
             tokens.pollFirst();
             if(tokens.peek().equals(syntax[EQUALS_SIGN])){
                 node.mode = ComparisonNode.Mode.EqualTo;
@@ -324,13 +341,24 @@ public class OakSpeakParser {
     //VARIABLE ASSIGNMENT
     
     private AST ParseAssignment(RQueue<ParseToken.TokenMatch> tokens){
-        AST name = ParseIdentifier(tokens);
-        if(name == null)
-            return null;
+        int restore = tokens.RestorePoint();
+        
+        //Indexer or Name
+        AST name = ParseIndexer(tokens);
+        if(name == null){
+            tokens.RestoreTo(restore);
+        
+            name = ParseIdentifier(tokens);
+            if(name == null)
+                return null;
+        }
+        
+        //Equals sign
         boolean equals = ParseEquals(tokens);
         if(!equals)
             return null;
         
+        //Expression
         AST exp = ParseExpression(tokens);
         if(exp == null)
             return null;
@@ -900,6 +928,114 @@ public class OakSpeakParser {
             return true;
         }
         return false;
+    }
+ 
+    //If 
+    public AST ParseIf(RQueue<ParseToken.TokenMatch> tokens){
+        if(tokens.isEmpty())
+            return null;
+        
+        //Parse IF
+        if(!tokens.isEmpty() && tokens.peek().equals(syntax[IF])){
+            tokens.pollFirst();
+        }else{
+            return null;
+        }
+        
+        //Parse (
+        if(!tokens.isEmpty() && tokens.peek().equals(syntax[OPEN_BRACKET])){
+            tokens.pollFirst();
+        }else{
+            return null;
+        }
+        
+        //Parse Boolean Exp
+        AST exp = ParseBooleanExpression(tokens);
+        if(exp == null)
+            return null;
+        
+        //Parse )
+        if(!tokens.isEmpty() && tokens.peek().equals(syntax[CLOSE_BRACKET])){
+            tokens.pollFirst();
+        }else{
+            return null;
+        }
+        
+        //Parse {
+        if(tokens.isEmpty() || !tokens.peek().equals(syntax[START_MATRIX])){
+            return null;
+        }
+        tokens.pollFirst();
+        
+        //Parse program
+        AST program = ParseProgram(tokens);
+        
+        //Parse }
+        if(tokens.isEmpty() || !tokens.peek().equals(syntax[END_MATRIX])){
+            return null;
+        }
+        tokens.pollFirst();
+        
+        //TODO have IF node creation
+        IfNode node = new IfNode();
+        node.boolExp = exp;
+        node.SetChild(0, program);
+        
+        return node;
+    }
+    
+    //While
+    public AST ParseWhile(RQueue<ParseToken.TokenMatch> tokens){
+        if(tokens.isEmpty())
+            return null;
+        
+        //Parse IF
+        if(!tokens.isEmpty() && tokens.peek().equals(syntax[WHILE])){
+            tokens.pollFirst();
+        }else{
+            return null;
+        }
+        
+        //Parse (
+        if(!tokens.isEmpty() && tokens.peek().equals(syntax[OPEN_BRACKET])){
+            tokens.pollFirst();
+        }else{
+            return null;
+        }
+        
+        //Parse Boolean Exp
+        AST exp = ParseBooleanExpression(tokens);
+        if(exp == null)
+            return null;
+        
+        //Parse )
+        if(!tokens.isEmpty() && tokens.peek().equals(syntax[CLOSE_BRACKET])){
+            tokens.pollFirst();
+        }else{
+            return null;
+        }
+        
+        //Parse {
+        if(tokens.isEmpty() || !tokens.peek().equals(syntax[START_MATRIX])){
+            return null;
+        }
+        tokens.pollFirst();
+        
+        //Parse program
+        AST program = ParseProgram(tokens);
+        
+        //Parse }
+        if(tokens.isEmpty() || !tokens.peek().equals(syntax[END_MATRIX])){
+            return null;
+        }
+        tokens.pollFirst();
+        
+        //TODO have IF node creation
+        WhileNode node = new WhileNode();
+        node.boolExp = exp;
+        node.SetChild(0, program);
+        
+        return node;
     }
     
 }

@@ -32,6 +32,10 @@ public class Bool {
         return new Bool(Boolean.parseBoolean(value));
     }
     
+    public boolean IsTrue(){
+        return this.value == true;
+    }
+    
     public Bool Equals(Bool b){
         return new Bool(this.value == b.value);
     }

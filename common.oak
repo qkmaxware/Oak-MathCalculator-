@@ -14,3 +14,14 @@ def logN(x,n:z){
 	z = log(x) / log(n);
 };
 
+def compare (x, y : z) {
+	IF(x < y){
+		z = -1;
+	};
+	IF(x > y){
+		z = 1;
+	};
+	IF(x == y){
+		z = 0;
+	};
+};
