@@ -24,10 +24,10 @@ public class OakSpeakParser {
             new ParseToken("mul","^\\*"),
             new ParseToken("div","^\\/"),
             new ParseToken("pow","^\\^"),
-            new ParseToken("def","^DEF"),
-            new ParseToken("booleanliteral","^(?:TRUE|FALSE)"),
-            new ParseToken("if","^IF"),
-            new ParseToken("while","^WHILE"),
+            new ParseToken("def","^def(?=\\W|$)"),
+            new ParseToken("booleanliteral","^(?:(?:true)|(?:false))(?=\\W|$)"),
+            new ParseToken("if","^if(?=\\W|$)"),
+            new ParseToken("while","^while(?=\\W|$)"),
             new ParseToken("number","^[0-9]+(?:\\.[0-9]+)?(?:[ij])?"),
             new ParseToken("identifier","^[a-zA-Z][a-zA-Z0-9]*"),
             new ParseToken("open","^\\("),
@@ -47,8 +47,8 @@ public class OakSpeakParser {
             new ParseToken("booleanor","^\\|"),
             new ParseToken("booleannot","^\\!"),
             new ParseToken("comment","^#.*#"),
-            new ParseToken("if","^if"),
-            new ParseToken("until","^until")
+            new ParseToken("if","^if(?=\\W|$)"),
+            new ParseToken("until","^until(?=\\W|$)")
         };
     
     private final int ADD = 0;
@@ -93,6 +93,8 @@ public class OakSpeakParser {
         RQueue<ParseToken.TokenMatch> tokens = new RQueue<ParseToken.TokenMatch>(
                 StripComments(tokenizer.Tokenize(script))
         );
+        
+        //System.out.println(tokens.toString());
         
         //Create parse tree
         AST root = ParseProgram(tokens);

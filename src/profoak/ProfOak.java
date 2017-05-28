@@ -397,9 +397,10 @@ public class ProfOak {
         
         //editor.AddStylingRule("[a-zA-Z][a-zA-Z0-9]*\\(.*\\)", Color.blue);      //Function call
         editor.AddStylingRule("[0-9]+(?:\\.[0-9]*)?(?:[ij])?", Color.red);      //Number
-        editor.AddStylingRule("DEF", Color.blue);                               //Definition
-        editor.AddStylingRule("IF", Color.blue);                               //Definition
-        editor.AddStylingRule("WHILE", Color.blue);                               //Definition
+        editor.AddStylingRule("def(?=\\W)", Color.blue);                               //Definition
+        editor.AddStylingRule("if(?=\\W)", Color.blue);                               //Definition
+        editor.AddStylingRule("while(?=\\W)", Color.blue);                               //Definition
+        editor.AddStylingRule("(?:true|false)(?=\\W)", Color.blue); 
         editor.AddStylingRule("#.*#", new Color(26,145,27));                    //Comment
         editor_subpanel.add(editor_top, BorderLayout.NORTH);
         editor_subpanel.add(editor, BorderLayout.CENTER);
